@@ -9,9 +9,8 @@ namespace SleepCommerce.IntegrationTests;
 
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:16")
-        .Build();
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16")
+    .Build();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

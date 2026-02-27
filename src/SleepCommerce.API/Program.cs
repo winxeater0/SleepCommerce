@@ -13,7 +13,23 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "SleepCommerce API",
+        Description = "API para gerenciamento de produtos do SleepCommerce",
+        Version = "v1"
+    });
+
+    var apiXmlFile = Path.Combine(AppContext.BaseDirectory, "SleepCommerce.API.xml");
+    if (File.Exists(apiXmlFile))
+        options.IncludeXmlComments(apiXmlFile);
+
+    var appXmlFile = Path.Combine(AppContext.BaseDirectory, "SleepCommerce.Application.xml");
+    if (File.Exists(appXmlFile))
+        options.IncludeXmlComments(appXmlFile);
+});
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -41,6 +57,10 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();
 
-public partial class Program { }
+public partial class Program {
+    protected Program()
+    {
+    }
+}
