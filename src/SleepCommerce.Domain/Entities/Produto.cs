@@ -22,6 +22,19 @@ public class Produto
         SetValor(valor);
     }
 
+    public static Produto Reconstituir(Guid id, string nome, string? descricao, int estoque, decimal valor, DateTime dataCriacao, DateTime? dataAtualizacao)
+    {
+        var produto = new Produto();
+        produto.Id = id;
+        produto.SetNome(nome);
+        produto.Descricao = descricao;
+        produto.SetEstoque(estoque);
+        produto.SetValor(valor);
+        produto.DataCriacao = dataCriacao;
+        produto.DataAtualizacao = dataAtualizacao;
+        return produto;
+    }
+
     public void Atualizar(string nome, string? descricao, int estoque, decimal valor)
     {
         SetNome(nome);

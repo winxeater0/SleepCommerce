@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SleepCommerce.Application\SleepCommerce.Application.csproj" />
     <ProjectReference Include="..\..\src\SleepCommerce.Domain\SleepCommerce.Domain.csproj" />
+    <ProjectReference Include="..\..\src\SleepCommerce.Infrastructure\SleepCommerce.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
