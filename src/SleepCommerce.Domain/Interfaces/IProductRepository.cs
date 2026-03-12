@@ -4,16 +4,18 @@ namespace SleepCommerce.Domain.Interfaces;
 
 public interface IProductRepository
 {
-    Task<Produto?> GetByIdAsync(Guid id);
-    Task<IEnumerable<Produto>> GetAllAsync();
+    Task<Produto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Produto?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Produto>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<(IEnumerable<Produto> Items, int TotalCount)> GetPagedAsync(
         string? nome,
         string? orderBy,
         string? orderDirection,
         int pageNumber,
-        int pageSize);
-    Task AddAsync(Produto produto);
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task AddAsync(Produto produto, CancellationToken cancellationToken = default);
     void Update(Produto produto);
     void Delete(Produto produto);
-    Task<int> SaveChangesAsync();
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

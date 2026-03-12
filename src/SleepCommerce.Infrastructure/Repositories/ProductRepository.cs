@@ -14,14 +14,21 @@ public class ProductRepository : IProductRepository
         _context = context;
     }
 
-    public async Task<Produto?> GetByIdAsync(Guid id)
+    public async Task<Produto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Produtos.FindAsync(id);
+        return await _context.Produtos.FindAsync(new object[] { id }, cancellationToken);
     }
 
-    public async Task<IEnumerable<Produto>> GetAllAsync()
+    public async Task<Produto?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Produtos.ToListAsync();
+        return await _context.Produtos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+    }
+
+    public async Task<IEnumerable<Produto>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Produtos.AsNoTracking().ToListAsync(cancellationToken);
     }
 
     public async Task<(IEnumerable<Produto> Items, int TotalCount)> GetPagedAsync(
@@ -29,30 +36,33 @@ public class ProductRepository : IProductRepository
         string? orderBy,
         string? orderDirection,
         int pageNumber,
-        int pageSize)
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
-        var query = _context.Produtos.AsQueryable();
+        var query = _context.Produtos.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(nome))
         {
             query = query.Where(p => p.Nome.ToLower().Contains(nome.ToLower()));
         }
 
-        var totalCount = await query.CountAsync();
+        var orderedQuery = ApplyOrdering(query, orderBy, orderDirection);
 
-        query = ApplyOrdering(query, orderBy, orderDirection);
-
-        var items = await query
+        var projected = await orderedQuery
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .Select(p => new { Item = p, TotalCount = query.Count() })
+            .ToListAsync(cancellationToken);
+
+        var items = projected.Select(x => x.Item);
+        var totalCount = projected.FirstOrDefault()?.TotalCount ?? 0;
 
         return (items, totalCount);
     }
 
-    public async Task AddAsync(Produto produto)
+    public async Task AddAsync(Produto produto, CancellationToken cancellationToken = default)
     {
-        await _context.Produtos.AddAsync(produto);
+        await _context.Produtos.AddAsync(produto, cancellationToken);
     }
 
     public void Update(Produto produto)
@@ -65,9 +75,9 @@ public class ProductRepository : IProductRepository
         _context.Produtos.Remove(produto);
     }
 
-    public async Task<int> SaveChangesAsync()
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.SaveChangesAsync();
+        return await _context.SaveChangesAsync(cancellationToken);
     }
 
     private static IQueryable<Produto> ApplyOrdering(IQueryable<Produto> query, string? orderBy, string? orderDirection)

@@ -26,7 +26,7 @@ public class ProductServiceTests
             new("Produto 1", "Desc 1", 10, 99.90m),
             new("Produto 2", "Desc 2", 20, 199.90m)
         };
-        _repositoryMock.Setup(r => r.GetPagedAsync(null, "nome", "asc", 1, 10))
+        _repositoryMock.Setup(r => r.GetPagedAsync(null, "nome", "asc", 1, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync((produtos.AsEnumerable(), 2));
 
         var result = await _service.GetAllAsync(new ProductQueryParameters());
@@ -40,7 +40,7 @@ public class ProductServiceTests
     public async Task GetByIdAsync_WhenExists_ShouldReturnProduct()
     {
         var produto = new Produto("Notebook", "Desc", 5, 4999.99m);
-        _repositoryMock.Setup(r => r.GetByIdAsync(produto.Id))
+        _repositoryMock.Setup(r => r.GetByIdReadOnlyAsync(produto.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(produto);
 
         var result = await _service.GetByIdAsync(produto.Id);
@@ -53,7 +53,7 @@ public class ProductServiceTests
     [Fact]
     public async Task GetByIdAsync_WhenNotExists_ShouldReturnNull()
     {
-        _repositoryMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+        _repositoryMock.Setup(r => r.GetByIdReadOnlyAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Produto?)null);
 
         var result = await _service.GetByIdAsync(Guid.NewGuid());
@@ -65,24 +65,24 @@ public class ProductServiceTests
     public async Task CreateAsync_ShouldCreateAndReturnProduct()
     {
         var request = new ProductRequest("Mouse", "Mouse gamer", 100, 149.90m);
-        _repositoryMock.Setup(r => r.AddAsync(It.IsAny<Produto>())).Returns(Task.CompletedTask);
-        _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _repositoryMock.Setup(r => r.AddAsync(It.IsAny<Produto>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _repositoryMock.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var result = await _service.CreateAsync(request);
 
         result.Nome.Should().Be("Mouse");
         result.Estoque.Should().Be(100);
         result.Valor.Should().Be(149.90m);
-        _repositoryMock.Verify(r => r.AddAsync(It.IsAny<Produto>()), Times.Once);
-        _repositoryMock.Verify(r => r.SaveChangesAsync(), Times.Once);
+        _repositoryMock.Verify(r => r.AddAsync(It.IsAny<Produto>(), It.IsAny<CancellationToken>()), Times.Once);
+        _repositoryMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task UpdateAsync_WhenExists_ShouldUpdateAndReturnProduct()
     {
         var produto = new Produto("Mouse", "Desc", 10, 99.90m);
-        _repositoryMock.Setup(r => r.GetByIdAsync(produto.Id)).ReturnsAsync(produto);
-        _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _repositoryMock.Setup(r => r.GetByIdAsync(produto.Id, It.IsAny<CancellationToken>())).ReturnsAsync(produto);
+        _repositoryMock.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var request = new ProductRequest("Mouse Atualizado", "Nova desc", 20, 149.90m);
         var result = await _service.UpdateAsync(produto.Id, request);
@@ -97,7 +97,7 @@ public class ProductServiceTests
     [Fact]
     public async Task UpdateAsync_WhenNotExists_ShouldReturnNull()
     {
-        _repositoryMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+        _repositoryMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Produto?)null);
 
         var result = await _service.UpdateAsync(Guid.NewGuid(), new ProductRequest("X", null, 0, 1));
@@ -109,8 +109,8 @@ public class ProductServiceTests
     public async Task DeleteAsync_WhenExists_ShouldReturnTrue()
     {
         var produto = new Produto("Mouse", "Desc", 10, 99.90m);
-        _repositoryMock.Setup(r => r.GetByIdAsync(produto.Id)).ReturnsAsync(produto);
-        _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _repositoryMock.Setup(r => r.GetByIdAsync(produto.Id, It.IsAny<CancellationToken>())).ReturnsAsync(produto);
+        _repositoryMock.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var result = await _service.DeleteAsync(produto.Id);
 
@@ -121,7 +121,7 @@ public class ProductServiceTests
     [Fact]
     public async Task DeleteAsync_WhenNotExists_ShouldReturnFalse()
     {
-        _repositoryMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+        _repositoryMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Produto?)null);
 
         var result = await _service.DeleteAsync(Guid.NewGuid());
@@ -140,7 +140,7 @@ public class ProductServiceTests
             PageNumber = 2,
             PageSize = 5
         };
-        _repositoryMock.Setup(r => r.GetPagedAsync("mouse", "valor", "desc", 2, 5))
+        _repositoryMock.Setup(r => r.GetPagedAsync("mouse", "valor", "desc", 2, 5, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Enumerable.Empty<Produto>(), 0));
 
         var result = await _service.GetAllAsync(parameters);

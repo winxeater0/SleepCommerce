@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using SleepCommerce.Application.Diagnostics;
 using SleepCommerce.Application.DTOs;
 using SleepCommerce.Application.Interfaces;
 using SleepCommerce.Domain.Entities;
@@ -14,14 +16,15 @@ public class ProductService : IProductService
         _repository = repository;
     }
 
-    public async Task<PagedResult<ProductResponse>> GetAllAsync(ProductQueryParameters parameters)
+    public async Task<PagedResult<ProductResponse>> GetAllAsync(ProductQueryParameters parameters, CancellationToken cancellationToken = default)
     {
         var (items, totalCount) = await _repository.GetPagedAsync(
             parameters.Nome,
             parameters.OrderBy,
             parameters.OrderDirection,
             parameters.PageNumber,
-            parameters.PageSize);
+            parameters.PageSize,
+            cancellationToken);
 
         var responses = items.Select(MapToResponse);
 
@@ -32,38 +35,49 @@ public class ProductService : IProductService
             parameters.PageSize);
     }
 
-    public async Task<ProductResponse?> GetByIdAsync(Guid id)
+    public async Task<ProductResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var produto = await _repository.GetByIdAsync(id);
+        var produto = await _repository.GetByIdReadOnlyAsync(id, cancellationToken);
         return produto is null ? null : MapToResponse(produto);
     }
 
-    public async Task<ProductResponse> CreateAsync(ProductRequest request)
+    public async Task<ProductResponse> CreateAsync(ProductRequest request, CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySources.Default.StartActivity("ProductService.Create");
+
         var produto = new Produto(request.Nome, request.Descricao, request.Estoque, request.Valor);
-        await _repository.AddAsync(produto);
-        await _repository.SaveChangesAsync();
+
+        activity?.SetTag("product.id", produto.Id.ToString());
+
+        await _repository.AddAsync(produto, cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
         return MapToResponse(produto);
     }
 
-    public async Task<ProductResponse?> UpdateAsync(Guid id, ProductRequest request)
+    public async Task<ProductResponse?> UpdateAsync(Guid id, ProductRequest request, CancellationToken cancellationToken = default)
     {
-        var produto = await _repository.GetByIdAsync(id);
+        using var activity = ActivitySources.Default.StartActivity("ProductService.Update");
+        activity?.SetTag("product.id", id.ToString());
+
+        var produto = await _repository.GetByIdAsync(id, cancellationToken);
         if (produto is null) return null;
 
         produto.Atualizar(request.Nome, request.Descricao, request.Estoque, request.Valor);
         _repository.Update(produto);
-        await _repository.SaveChangesAsync();
+        await _repository.SaveChangesAsync(cancellationToken);
         return MapToResponse(produto);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var produto = await _repository.GetByIdAsync(id);
+        using var activity = ActivitySources.Default.StartActivity("ProductService.Delete");
+        activity?.SetTag("product.id", id.ToString());
+
+        var produto = await _repository.GetByIdAsync(id, cancellationToken);
         if (produto is null) return false;
 
         _repository.Delete(produto);
-        await _repository.SaveChangesAsync();
+        await _repository.SaveChangesAsync(cancellationToken);
         return true;
     }
 

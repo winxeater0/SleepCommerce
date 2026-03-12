@@ -8,6 +8,8 @@ API REST para gerenciamento de produtos, desenvolvida como desafio técnico da S
 - Entity Framework Core 9
 - PostgreSQL 16
 - FluentValidation
+- OpenTelemetry (traces, métricas e logs)
+- Aspire Dashboard
 - Swagger (Swashbuckle)
 - xUnit + Moq + FluentAssertions + Testcontainers
 
@@ -27,11 +29,13 @@ Clean Architecture com 4 camadas:
 
 ## Como executar
 
-### 1. Subir o banco de dados
+### 1. Subir a infraestrutura (PostgreSQL + Aspire Dashboard)
 
 ```bash
 docker-compose up -d
 ```
+
+Isso inicia o PostgreSQL e o Aspire Dashboard (coletor de telemetria).
 
 ### 2. Executar a API
 
@@ -85,6 +89,70 @@ dotnet test tests/SleepCommerce.IntegrationTests
 dotnet test
 ```
 
+## Observabilidade (OpenTelemetry + Aspire Dashboard)
+
+A API exporta traces, métricas e logs via OpenTelemetry (protocolo OTLP) para o Aspire Dashboard, que já está configurado no `docker-compose.yml`.
+
+### Passo a passo
+
+#### 1. Iniciar o Aspire Dashboard
+
+Se ainda não subiu a infraestrutura:
+
+```bash
+docker-compose up -d
+```
+
+Verifique se o container está rodando:
+
+```bash
+docker ps --filter name=sleepcommerce-dashboard
+```
+
+#### 2. Acessar o Dashboard
+
+Abra no navegador: [http://localhost:18888](http://localhost:18888)
+
+O dashboard não exige autenticação (configurado com `DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`).
+
+#### 3. Executar a API e gerar telemetria
+
+```bash
+dotnet run --project src/SleepCommerce.API
+```
+
+A API envia telemetria automaticamente para `localhost:4317` (OTLP gRPC). Faça algumas requisições via Swagger ou curl para gerar dados:
+
+```bash
+# Listar produtos
+curl http://localhost:5000/api/products
+
+# Criar produto
+curl -X POST http://localhost:5000/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"Teclado RGB","descricao":"Mecânico","estoque":50,"valor":299.90}'
+
+# Buscar por ID
+curl http://localhost:5000/api/products/{id}
+```
+
+#### 4. Visualizar no Dashboard
+
+No Aspire Dashboard (`http://localhost:18888`) você encontra três seções:
+
+| Seção          | O que mostra                                                                 |
+|----------------|------------------------------------------------------------------------------|
+| **Traces**     | Cada requisição HTTP de ponta a ponta, incluindo spans do EF Core (queries SQL) e spans customizados de negócio (`ProductService.Create`, `.Update`, `.Delete`) |
+| **Metrics**    | Métricas do ASP.NET Core (req/s, duração, status codes) e do HttpClient      |
+| **Structured Logs** | Logs da aplicação com scopes e mensagens formatadas                     |
+
+#### O que é instrumentado
+
+- **ASP.NET Core** — trace automático de cada request/response (rota, status code, duração)
+- **Entity Framework Core** — trace de cada query SQL executada
+- **HttpClient** — trace de chamadas HTTP de saída (se houver)
+- **Spans customizados** — operações de criação, atualização e exclusão no `ProductService`, com tag `product.id`
+
 ## Estrutura do Projeto
 
 ```
@@ -96,6 +164,7 @@ SleepCommerce/
 │   │   ├── Entities/Produto.cs
 │   │   └── Interfaces/IProductRepository.cs
 │   ├── SleepCommerce.Application/
+│   │   ├── Diagnostics/ActivitySources.cs
 │   │   ├── DTOs/
 │   │   ├── Interfaces/IProductService.cs
 │   │   ├── Services/ProductService.cs
